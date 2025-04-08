@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ranking de Estudiantes</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    input[type="number"] { width: 60px; }
+    .ranking-icon { font-size: 20px; }
+    button { cursor: pointer; padding: 4px 8px; margin: 2px; }
+
+    /* Animación suave */
+    tbody tr {
+      transition: transform 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Salón A - Lista de Estudiantes</h2>
+
+  <form id="formulario">
+    <input type="text" id="nombre" placeholder="Nombre del estudiante" required>
+    <button type="submit">Agregar</button>
+  </form>
+
+  <button onclick="actualizarRankingAnimado()">🔄 Actualizar Ranking</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Estudiante</th>
+        <th>Nota 1</th>
+        <th>Nota 2</th>
+        <th>Nota 3</th>
+        <th>Promedio</th>
+        <th>Ranking</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tabla-body"></tbody>
+  </table>
+
+  <script>
+    let estudiantes = JSON.parse(localStorage.getItem('estudiantes')) || [];
+
+    const tablaBody = document.getElementById('tabla-body');
+    const formulario = document.getElementById('formulario');
+    const inputNombre = document.getElementById('nombre');
+
+    function guardarEstudiantes() {
+      localStorage.setItem('estudiantes', JSON.stringify(estudiantes));
+    }
+
+    function calcularPromedio(n1, n2, n3) {
+      return ((n1 + n2 + n3) / 3).toFixed(2);
+    }
+
+    function actualizarTabla() {
+      tablaBody.innerHTML = '';
+      estudiantes.forEach((est, i) => {
+        const fila = document.createElement('tr');
+        fila.dataset.id = est.nombre;
+        fila.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${est.nombre}</td>
+          <td><input type="number" class="nota" data-index="${i}" data-nota="nota1" value="${est.nota1 || ''}"></td>
+          <td><input type="number" class="nota" data-index="${i}" data-nota="nota2" value="${est.nota2 || ''}"></td>
+          <td><input type="number" class="nota" data-index="${i}" data-nota="nota3" value="${est.nota3 || ''}"></td>
+          <td class="promedio">${est.promedio || '0.00'}</td>
+          <td class="ranking-icon">${est.icono || ''}</td>
+          <td>
+            <button onclick="editarEstudiante(${i})">✏️</button>
+            <button onclick="eliminarEstudiante(${i})">🗑️</button>
+          </td>
+        `;
+        tablaBody.appendChild(fila);
+      });
+
+      document.querySelectorAll('.nota').forEach(input => {
+        input.addEventListener('input', e => {
+          const index = e.target.dataset.index;
+          const nota = e.target.dataset.nota;
+          estudiantes[index][nota] = parseFloat(e.target.value) || 0;
+          estudiantes[index].promedio = calcularPromedio(
+            estudiantes[index].nota1 || 0,
+            estudiantes[index].nota2 || 0,
+            estudiantes[index].nota3 || 0
+          );
+          guardarEstudiantes();
+          actualizarTabla(); // Solo refresca valores, sin reordenar
+        });
+      });
+    }
+
+    formulario.addEventListener('submit', e => {
+      e.preventDefault();
+      const nombre = inputNombre.value.trim();
+      if (nombre) {
+        estudiantes.push({ nombre, nota1: 0, nota2: 0, nota3: 0, promedio: 0, icono: '' });
+        guardarEstudiantes();
+        actualizarTabla();
+        inputNombre.value = '';
+      }
+    });
+
+    function eliminarEstudiante(index) {
+      if (confirm(`¿Eliminar a "${estudiantes[index].nombre}"?`)) {
+        estudiantes.splice(index, 1);
+        guardarEstudiantes();
+        actualizarTabla();
+      }
+    }
+
+    function editarEstudiante(index) {
+      const nuevoNombre = prompt("Editar nombre:", estudiantes[index].nombre);
+      if (nuevoNombre && nuevoNombre.trim() !== "") {
+        estudiantes[index].nombre = nuevoNombre.trim();
+        guardarEstudiantes();
+        actualizarTabla();
+      }
+    }
+
+    function actualizarRankingAnimado() {
+      // Ordenar por promedio descendente
+      estudiantes.sort((a, b) => b.promedio - a.promedio);
+      estudiantes.forEach((est, i) => {
+        est.icono = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+      });
+
+      // Animar movimiento
+      const oldRows = Array.from(tablaBody.children);
+      const oldOrder = oldRows.map(row => row.dataset.id);
+
+      actualizarTabla();
+
+      const newRows = Array.from(tablaBody.children);
+      newRows.forEach((row, index) => {
+        const prevIndex = oldOrder.indexOf(row.dataset.id);
+        if (prevIndex !== -1 && prevIndex !== index) {
+          row.style.transform = `translateY(${(prevIndex - index) * 100}%)`;
+          requestAnimationFrame(() => {
+            row.style.transition = 'transform 0.5s ease';
+            row.style.transform = 'translateY(0)';
+          });
+        }
+      });
+
+      guardarEstudiantes();
+    }
+
+    actualizarTabla();
+  </script>
+
+</body>
+</html>
+
